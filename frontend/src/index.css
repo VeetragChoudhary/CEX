@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #0b0e11;
+  color: #eaecef;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The orderbook and trade lists scroll a lot, keep the scrollbars quiet */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #2b3139;
+  border-radius: 3px;
+}
