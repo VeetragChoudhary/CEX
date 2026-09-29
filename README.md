@@ -1,4 +1,4 @@
-# cex-ai
+# cex
 
 A spot centralized exchange. Four services: a REST api, an in-memory matching
 engine, a websocket fanout server, and a React frontend.
