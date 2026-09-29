@@ -10,11 +10,16 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+app.get("/health", (_req, res) => {
+    res.status(200).send("ok")
+})
+
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/order", orderRouter)
 app.use("/api/v1/depth", depthRouter)
 app.use("/api/v1/balance", balanceRouter)
 
-app.listen(3000, () => {
-    console.log("Server running on port 3000!!")
+const port = Number(process.env.PORT) || 3000
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on port ${port}!!`)
 })

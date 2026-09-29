@@ -1,0 +1,85 @@
+# Render Blueprint. Apply from the dashboard: New → Blueprint.
+# The static site's VITE_* URLs are prompted on first sync because they
+# must be the public https/wss hosts of cex-api and cex-ws.
+
+databases:
+  - name: cex-db
+    databaseName: cex
+    user: cex
+
+services:
+  - type: keyvalue
+    name: cex-redis
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  - type: worker
+    name: cex-engine
+    runtime: node
+    rootDir: engine
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: REDIS_URL
+        fromService:
+          name: cex-redis
+          type: keyvalue
+          property: connectionString
+
+  - type: web
+    name: cex-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cex-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: cex-redis
+          type: keyvalue
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+  - type: web
+    name: cex-ws
+    runtime: node
+    rootDir: ws
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: REDIS_URL
+        fromService:
+          name: cex-redis
+          type: keyvalue
+          property: connectionString
+
+  - type: web
+    name: cex-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_WS_URL
+        sync: false
