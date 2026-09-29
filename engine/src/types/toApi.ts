@@ -25,6 +25,11 @@ export type MessageToApi = {
         remainingQty: number
     }
 } | {
+    type: "ORDER_REJECTED",
+    payload: {
+        error: string
+    }
+} | {
     type: "OPEN_ORDERS",
     payload: Order[]
 } | {

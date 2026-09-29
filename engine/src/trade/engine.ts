@@ -3,7 +3,10 @@ import { Orderbook, type Fill, type Order } from "./Orderbook.js";
 import type { MessageFromApi } from "../types/fromApi.js";
 import { TRADE_ADDED, ORDER_UPDATE } from "../types/index.js";
 
-export const BASE_CURRENCY = "INR";
+export const BASE_CURRENCY = "USD";
+const MARKET_MAKER_ID = "market-maker";
+const STARTER_QUOTE = 5000;
+const STARTER_BASE = 50;
 
 
 interface UserBalance {
@@ -37,12 +40,12 @@ export class Engine {
                     })
                 } catch (error) {
                     console.error("Error: ", error)
+                    // A rejection is not a cancellation. Report why, so the
+                    // api can surface it instead of faking a placed order.
                     RedisManager.getInstance().sendToApi(clientId, {
-                        type: "ORDER_CANCELLED",
+                        type: "ORDER_REJECTED",
                         payload: {
-                            orderId: "",
-                            executedQty: 0,
-                            remainingQty: 0
+                            error: error instanceof Error ? error.message : "Could not place order"
                         }
                     })
                 }
@@ -129,10 +132,31 @@ export class Engine {
                 break;
 
             case "GET_BALANCE":
+                if (!this.balances.has(message.data.userId)) {
+                    this.grantStarterBalance(message.data.userId);
+                }
                 RedisManager.getInstance().sendToApi(clientId, {
                     type: "BALANCE",
                     payload: this.balances.get(message.data.userId) || {}
                 });
+                break;
+            case "SEED_ORDERBOOK":
+                try {
+                    this.seedOrderbook(message.data.market);
+                    const seeded = this.orderbooks.find(o => o.ticker() === message.data.market);
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "DEPTH",
+                        payload: seeded ? seeded.getDepth() : { bids: [], asks: [] }
+                    });
+                } catch (error) {
+                    console.error("Error seeding orderbook: ", error);
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "ORDER_REJECTED",
+                        payload: {
+                            error: error instanceof Error ? error.message : "Could not seed orderbook"
+                        }
+                    });
+                }
                 break;
             case "GET_DEPTH":
                 try {
@@ -352,10 +376,7 @@ export class Engine {
 
 
     checkAndLockFunds(baseAsset: string, quoteAsset: string, side: "buy" | "sell", userId: string, asset: string, price: string, quantity: string) {
-        const userBalance = this.balances.get(userId)
-        if (!userBalance) {
-            throw new Error("User has no balance")
-        }
+        const userBalance = this.balances.get(userId) ?? this.grantStarterBalance(userId)
 
         if (side === "buy") {
             const required = Number(quantity) * Number(price)
@@ -375,20 +396,46 @@ export class Engine {
     }
 
     onRamp(userId: string, amount: number) {
-        const userBalance = this.balances.get(userId)
-        if (!userBalance) {
-            this.balances.set(userId, {
-                [BASE_CURRENCY]: {
-                    available: amount,
-                    locked: 0
-                },
-                "SOL": {
-                    available: 0,
-                    locked: 0
-                }
-            })
-        } else {
-            this.getAssetBalance(userId, BASE_CURRENCY).available += amount
+        if (!this.balances.get(userId)) {
+            this.grantStarterBalance(userId);
+            const extra = amount - STARTER_QUOTE;
+            if (extra > 0) {
+                this.getAssetBalance(userId, BASE_CURRENCY).available += extra;
+            }
+            return;
+        }
+        this.getAssetBalance(userId, BASE_CURRENCY).available += amount;
+    }
+
+    grantStarterBalance(userId: string): UserBalance {
+        const starter: UserBalance = {
+            [BASE_CURRENCY]: {
+                available: STARTER_QUOTE,
+                locked: 0,
+            },
+            SOL: {
+                available: STARTER_BASE,
+                locked: 0,
+            },
+        };
+        this.balances.set(userId, starter);
+        return starter;
+    }
+
+    seedOrderbook(market: string) {
+        if (!this.balances.has(MARKET_MAKER_ID)) {
+            this.balances.set(MARKET_MAKER_ID, {
+                [BASE_CURRENCY]: { available: 10_000_000, locked: 0 },
+                SOL: { available: 10_000_000, locked: 0 },
+            });
+        }
+
+        const mid = 100;
+        const tick = 0.5;
+        for (let i = 1; i <= 10; i++) {
+            const qty = String(2 + i);
+            this.createOrder(market, (mid - i * tick).toFixed(2), qty, "buy", MARKET_MAKER_ID);
+            this.createOrder(market, (mid + i * tick).toFixed(2), qty, "sell", MARKET_MAKER_ID);
         }
     }
 
@@ -411,7 +458,7 @@ export class Engine {
 
     setBaseBalances() {
         // Seed a couple of accounts so the exchange is usable out of the box
-        for (const userId of ["1", "2", "5"]) {
+        for (const userId of ["1", "2", "5", MARKET_MAKER_ID]) {
             this.balances.set(userId, {
                 [BASE_CURRENCY]: {
                     available: 10000000,

@@ -2,9 +2,9 @@
 // creating the matching Orderbook in the engine as well.
 export const MARKETS = [
     {
-        symbol: "SOL_INR",
+        symbol: "SOL_USD",
         base: "SOL",
-        quote: "INR",
+        quote: "USD",
         name: "Solana",
     },
 ];

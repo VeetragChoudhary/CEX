@@ -31,7 +31,9 @@ export class RedisManager {
     private static instance: RedisManager
 
     constructor() {
-        const client = createClient()
+        const client = createClient({
+            url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
+        })
         // Without a handler a dropped connection takes the process down
         client.on("error", (err: unknown) => console.error("Redis error: ", err))
         this.client = client as RedisClientType

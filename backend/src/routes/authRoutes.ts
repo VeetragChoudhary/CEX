@@ -39,7 +39,7 @@ Router.post("/signup", async (req, res) => {
             type: "ON_RAMP",
             data: {
                 userId: user.id,
-                amount: "10000",
+                amount: "5000",
                 txnId: RedisManager.getInstance().getRandomClientId()
             }
         })

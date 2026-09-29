@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cexpass}
+      POSTGRES_DB: ${POSTGRES_DB:-cex}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cex} -d ${POSTGRES_DB:-cex}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  engine:
+    build: ./engine
+    environment:
+      # In-network address, so the IPv6 localhost problem does not apply here.
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cex}:${POSTGRES_PASSWORD:-cexpass}@postgres:5432/${POSTGRES_DB:-cex}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+    ports:
+      # Bound to IPv4 explicitly: on hosts where IPv6 loopback is broken, a
+      # default bind makes localhost:3000 resolve to ::1 and hang.
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ws:
+    build: ./ws
+    environment:
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "127.0.0.1:${WS_PORT:-3001}:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser-facing, so these are host URLs and must match the published
+        # ports above rather than the compose service names. 127.0.0.1 rather
+        # than localhost, which resolves to ::1 first and hangs on hosts
+        # without working IPv6 loopback.
+        VITE_API_URL: http://127.0.0.1:${BACKEND_PORT:-3000}/api/v1
+        VITE_WS_URL: ws://127.0.0.1:${WS_PORT:-3001}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+      - ws
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

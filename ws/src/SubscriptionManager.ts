@@ -9,7 +9,9 @@ export class SubscriptionManager {
     private redisClient: RedisClientType
 
     private constructor() {
-        this.redisClient = createClient()
+        this.redisClient = createClient({
+            url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
+        })
         // Without a handler a dropped connection takes the process down
         this.redisClient.on("error", (err) => console.error("Redis error: ", err))
         this.redisClient.connect()

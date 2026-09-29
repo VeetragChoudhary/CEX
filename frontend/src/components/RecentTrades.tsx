@@ -1,45 +1,36 @@
 import type { Trade } from "../types";
+import { fmtPrice, fmtQty } from "../format";
 
 interface Props {
     trades: Trade[];
     quote: string;
     base: string;
+    onPriceClick: (price: string) => void;
 }
 
-export default function RecentTrades({ trades, quote, base }: Props) {
+export default function RecentTrades({ trades, quote, base, onPriceClick }: Props) {
     return (
-        <div className="flex h-full flex-col rounded-lg border border-[#2b3139] bg-[#181a20]">
-            <div className="border-b border-[#2b3139] px-3 py-2 text-sm font-medium">
-                Recent Trades
-            </div>
-
-            <div className="flex justify-between px-3 py-2 text-[11px] text-[#848e9c]">
+        <div className="flex h-full min-h-0 flex-col bg-panel">
+            <div className="grid grid-cols-2 px-3 py-1.5 text-[10px] uppercase tracking-wide text-dim">
                 <span>Price ({quote})</span>
-                <span>Size ({base})</span>
+                <span className="text-right">Size ({base})</span>
             </div>
-
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
                 {trades.length === 0 ? (
-                    <p className="px-3 py-6 text-center text-xs text-[#848e9c]">
-                        No trades yet
-                    </p>
+                    <p className="px-3 py-8 text-center text-xs text-muted">No trades yet</p>
                 ) : (
                     trades.map((trade) => (
-                        <div
+                        <button
                             key={trade.tradeId}
-                            className="flex justify-between px-3 py-[3px] text-xs"
+                            type="button"
+                            onClick={() => onPriceClick(trade.price)}
+                            className="grid w-full grid-cols-2 px-3 py-[3px] text-left text-[11px] tabular-nums hover:bg-hover"
                         >
-                            <span
-                                className={
-                                    trade.isBuyerMaker ? "text-red-400" : "text-green-400"
-                                }
-                            >
-                                {Number(trade.price).toFixed(2)}
+                            <span className={trade.isBuyerMaker ? "text-down" : "text-up"}>
+                                {fmtPrice(trade.price)}
                             </span>
-                            <span className="text-[#eaecef]">
-                                {Number(trade.quantity).toFixed(2)}
-                            </span>
-                        </div>
+                            <span className="text-right text-fg">{fmtQty(trade.quantity)}</span>
+                        </button>
                     ))
                 )}
             </div>

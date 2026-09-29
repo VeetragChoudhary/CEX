@@ -17,6 +17,7 @@ export interface Trade {
     price: string;
     quantity: string;
     isBuyerMaker: boolean;
+    time: number;
 }
 
 export interface Balance {

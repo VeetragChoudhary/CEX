@@ -1,7 +1,9 @@
 import axios from "axios";
 import type { Balance, Depth, Order } from "./types";
 
-const BASE_URL = "http://localhost:3000/api/v1";
+// Baked in at build time. The browser resolves this, not Docker, so it stays
+// a host-reachable URL even when the api runs in a container.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
 
 export const api = axios.create({
     baseURL: BASE_URL,
@@ -24,6 +26,11 @@ export async function signup(email: string, password: string) {
 export async function login(email: string, password: string) {
     const res = await api.post("/auth/login", { email, password });
     return res.data as { token: string; userId: string; email: string };
+}
+
+export async function seedOrderbook(market: string) {
+    const res = await api.post("/depth/seed", { market });
+    return res.data as Depth;
 }
 
 export async function getDepth(market: string) {

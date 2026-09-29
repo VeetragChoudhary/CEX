@@ -8,21 +8,20 @@ export class RedisManager {
     
     constructor() {
         this.client = createClient({
-            // url: process.env.REDIS_URL,
+            url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
         })
         // Without a handler a dropped connection takes the process down
         this.client.on("error", (err) => console.error("Redis error: ", err))
         this.client.connect()
 
         this.publisher = createClient({
-            // url: process.env.REDIS_URL,
+            url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
         })
         this.publisher.on("error", (err) => console.error("Redis error: ", err))
         this.publisher.connect()
 
     }
 
-    // how will this method run, don't understand
     static getInstance() {
         if(!this.instance) {
             this.instance = new RedisManager()
@@ -31,7 +30,7 @@ export class RedisManager {
     }
 
     public sendAndAwait(message: {}) {
-        return new Promise<{ payload: any }>((resolve) => {
+        return new Promise<{ type: string, payload: any }>((resolve) => {
             const id = this.getRandomClientId()
             
             this.client.subscribe(id, (message) => {

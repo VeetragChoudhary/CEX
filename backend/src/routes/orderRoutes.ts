@@ -21,6 +21,14 @@ Router.post("/", authMiddleware, async (req, res) => {
 
         })
 
+        // The engine rejects orders it cannot fund. That is a client error,
+        // not a 202, otherwise the ui reports a failed order as placed.
+        if (response.type === "ORDER_REJECTED") {
+            return res.status(400).json({
+                error: response.payload.error
+            })
+        }
+
         res.status(202).json(response.payload)
 
     } catch (error) {

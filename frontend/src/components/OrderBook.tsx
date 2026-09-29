@@ -1,19 +1,23 @@
 import type { Depth } from "../types";
+import { fmtPrice, fmtQty } from "../format";
 
 interface Props {
     depth: Depth;
     base: string;
     quote: string;
+    lastPrice: number | null;
+    lastUp: boolean;
+    onPriceClick: (price: string) => void;
 }
 
-// Rows are drawn with a background bar sized by cumulative total, which is
-// the usual way to read depth at a glance.
 function Rows({
     levels,
     side,
+    onPriceClick,
 }: {
     levels: [string, string][];
     side: "bid" | "ask";
+    onPriceClick: (price: string) => void;
 }) {
     let running = 0;
     const totals = levels.map(([, size]) => (running += Number(size)));
@@ -22,72 +26,83 @@ function Rows({
     return (
         <div>
             {levels.map(([price, size], i) => (
-                <div key={price} className="relative flex justify-between px-3 py-[3px] text-xs">
+                <button
+                    key={`${side}-${price}`}
+                    type="button"
+                    onClick={() => onPriceClick(price)}
+                    className="relative flex w-full items-center justify-between px-3 py-[3px] text-[11px] tabular-nums hover:bg-hover"
+                >
                     <div
                         className={`absolute inset-y-0 right-0 ${
-                            side === "bid" ? "bg-green-500/10" : "bg-red-500/10"
+                            side === "bid" ? "bg-up/10" : "bg-down/10"
                         }`}
                         style={{ width: `${(totals[i] / max) * 100}%` }}
                     />
-                    <span
-                        className={`relative ${
-                            side === "bid" ? "text-green-400" : "text-red-400"
-                        }`}
-                    >
-                        {Number(price).toFixed(2)}
+                    <span className={`relative ${side === "bid" ? "text-up" : "text-down"}`}>
+                        {fmtPrice(price)}
                     </span>
-                    <span className="relative text-[#eaecef]">{Number(size).toFixed(2)}</span>
-                    <span className="relative text-[#848e9c]">{totals[i].toFixed(2)}</span>
-                </div>
+                    <span className="relative text-fg">{fmtQty(size)}</span>
+                    <span className="relative text-muted">{fmtQty(totals[i])}</span>
+                </button>
             ))}
         </div>
     );
 }
 
-export default function OrderBook({ depth, base, quote }: Props) {
-    // Best prices sit next to the spread, so asks are drawn worst to best
-    const asks = [...depth.asks].slice(0, 12).reverse();
-    const bids = [...depth.bids].slice(0, 12);
+export default function OrderBook({
+    depth,
+    base,
+    quote,
+    lastPrice,
+    lastUp,
+    onPriceClick,
+}: Props) {
+    const asks = [...depth.asks].slice(0, 11).reverse();
+    const bids = [...depth.bids].slice(0, 11);
 
-    const bestAsk = depth.asks[0] ? Number(depth.asks[0][0]) : null;
-    const bestBid = depth.bids[0] ? Number(depth.bids[0][0]) : null;
-    const spread = bestAsk !== null && bestBid !== null ? bestAsk - bestBid : null;
+    const bidVol = depth.bids.reduce((s, [, q]) => s + Number(q), 0);
+    const askVol = depth.asks.reduce((s, [, q]) => s + Number(q), 0);
+    const totalVol = bidVol + askVol;
+    const bidPct = totalVol ? (bidVol / totalVol) * 100 : 50;
 
     return (
-        <div className="flex h-full flex-col rounded-lg border border-[#2b3139] bg-[#181a20]">
-            <div className="border-b border-[#2b3139] px-3 py-2 text-sm font-medium">
-                Order Book
-            </div>
-
-            <div className="flex justify-between px-3 py-2 text-[11px] text-[#848e9c]">
+        <div className="flex h-full min-h-0 flex-col bg-panel">
+            <div className="grid grid-cols-3 px-3 py-1.5 text-[10px] uppercase tracking-wide text-dim">
                 <span>Price ({quote})</span>
-                <span>Size ({base})</span>
-                <span>Total</span>
+                <span className="text-center">Size ({base})</span>
+                <span className="text-right">Total</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
                 {asks.length === 0 && bids.length === 0 ? (
-                    <p className="px-3 py-6 text-center text-xs text-[#848e9c]">
-                        No orders yet
-                    </p>
+                    <p className="px-3 py-8 text-center text-xs text-muted">No orders yet</p>
                 ) : (
                     <>
-                        <Rows levels={asks} side="ask" />
-
-                        <div className="flex items-center justify-between border-y border-[#2b3139] px-3 py-1.5">
-                            <span className="text-sm font-medium">
-                                {bestBid !== null ? bestBid.toFixed(2) : "--"}
+                        <Rows levels={asks} side="ask" onPriceClick={onPriceClick} />
+                        <div className="flex items-center justify-between border-y border-line px-3 py-1.5">
+                            <span
+                                className={`text-sm font-semibold tabular-nums ${
+                                    lastUp ? "text-up" : "text-down"
+                                }`}
+                            >
+                                {lastPrice !== null ? fmtPrice(lastPrice) : "—"}
                             </span>
-                            {spread !== null && (
-                                <span className="text-[11px] text-[#848e9c]">
-                                    Spread {spread.toFixed(2)}
-                                </span>
-                            )}
+                            <span className="text-[10px] uppercase tracking-wide text-dim">
+                                last
+                            </span>
                         </div>
-
-                        <Rows levels={bids} side="bid" />
+                        <Rows levels={bids} side="bid" onPriceClick={onPriceClick} />
                     </>
                 )}
+            </div>
+
+            <div className="flex items-center gap-2 border-t border-line px-3 py-2 text-[10px] tabular-nums">
+                <span className="text-up">{bidPct.toFixed(0)}%</span>
+                <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+                    <div className="h-full bg-up" style={{ width: `${bidPct}%` }} />
+                    <div className="h-full bg-down" style={{ width: `${100 - bidPct}%` }} />
+                </div>
+                <span className="text-down">{(100 - bidPct).toFixed(0)}%</span>
             </div>
         </div>
     );

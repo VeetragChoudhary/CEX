@@ -1,22 +1,69 @@
 @import "tailwindcss";
 
-html, body, #root {
+@theme {
+  --color-bg: #070708;
+  --color-panel: #0d0d10;
+  --color-elevated: #121216;
+  --color-hover: #18181d;
+  --color-line: #1c1c22;
+  --color-line-strong: #2a2a32;
+  --color-muted: #8b8b96;
+  --color-dim: #5c5c66;
+  --color-fg: #f1f1f4;
+  --color-up: #0ecb81;
+  --color-up-dim: #0ecb811f;
+  --color-down: #f6465d;
+  --color-down-dim: #f6465d1f;
+  --color-accent: #14b8a6;
+}
+
+html,
+body,
+#root {
   height: 100%;
 }
 
 body {
-  background-color: #0b0e11;
-  color: #eaecef;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "tnum" 1, "ss01" 1;
 }
 
-/* The orderbook and trade lists scroll a lot, keep the scrollbars quiet */
+::selection {
+  background: #14b8a64d;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #2b3139;
+  background: #2a2a32;
   border-radius: 3px;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: #2a2a32;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f1f1f4;
+  cursor: pointer;
 }
